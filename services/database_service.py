@@ -144,9 +144,11 @@ class DatabaseService:
                 float_embedding = [float(x) for x in decimal_embedding]
                 
                 # 存储到内存向量存储
+                # ✅ 修复：添加user_id
                 self.vector_store[memory_id] = {
                     'embedding': np.array(float_embedding),
-                    'memory_id': memory_id
+                    'memory_id': memory_id,
+                    'user_id': item.get('user_id')  # ✅ 添加这行！
                 }
                 loaded_count += 1
             
@@ -495,3 +497,4 @@ class DatabaseService:
 
 # 全局实例
 database_service = DatabaseService()
+
