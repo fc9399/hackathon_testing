@@ -1,6 +1,7 @@
-# main.py
+# main.py - 修复版本
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from routers import upload_router, embedding_router, search_router, ai_agent_router, auth
 from services.s3_service import s3_service
 from services.embedding_service import embedding_service
@@ -8,11 +9,43 @@ from services.database_service import database_service
 from services.ai_agent_service import ai_agent_service
 from config import settings
 
+# ✅ 修复：添加 security schemes 配置
 app = FastAPI(
     title="Personal Memory Hub API",
     description="AWS & NVIDIA Hackathon Project - File Upload & Embedding Service",
-    version="1.0.0"
+    version="1.0.0",
+    # 添加这个配置！
+    swagger_ui_parameters={
+        "persistAuthorization": True,  # 保持认证状态
+    }
 )
+
+# ✅ 修复：自定义OpenAPI schema，添加security定义
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    
+    openapi_schema = get_openapi(
+        title=app.title,
+        version=app.version,
+        description=app.description,
+        routes=app.routes,
+    )
+    
+    # 添加security schemes定义
+    openapi_schema["components"]["securitySchemes"] = {
+        "HTTPBearer": {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": "Enter your JWT token in the format: Bearer <token>"
+        }
+    }
+    
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 # CORS配置
 app.add_middleware(
@@ -95,6 +128,15 @@ if __name__ == "__main__":
     print(f"🔧 Environment: {settings.ENVIRONMENT}")
     print(f"🤖 Embedding Model: {settings.EMBEDDING_MODEL}")
     uvicorn.run(app, host="0.0.0.0", port=8012)
+
+
+
+
+
+
+
+
+
 
 
 
