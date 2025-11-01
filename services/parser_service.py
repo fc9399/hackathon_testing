@@ -156,7 +156,6 @@ class ParserService:
                 summary=parsed_content.get('summary'),
                 tags=parsed_content.get('tags', [])
             )
-            
             # 处理额外的文本块（如果有的话）
             additional_memories = []
             if 'additional_chunks' in parsed_content:
@@ -168,11 +167,12 @@ class ParserService:
                             input_type="passage"
                         )
                         
-                        # 创建额外的记忆单元
+                        # ✅ 创建额外的记忆单元 - 添加 user_id 参数
                         chunk_memory_id = database_service.create_memory(
                             content=chunk,
                             memory_type=parsed_content['type'],
                             embedding=chunk_embedding,
+                            user_id=user_id,  # ✅ 添加 user_id 参数
                             metadata={
                                 'original_filename': file.filename,
                                 'file_size': len(file_content),
@@ -197,6 +197,8 @@ class ParserService:
                         
                     except Exception as e:
                         print(f"⚠️  Failed to process chunk {i + 1}: {e}")
+                        import traceback
+                        traceback.print_exc()
                         continue
             
             return {
@@ -382,18 +384,8 @@ class ParserService:
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Image parsing failed: {str(e)}")
     
-    async def parse_text_input(self, text: str, source: str = None, user_id: str = None) -> Dict[str, Any]:
-        """
-        解析直接输入的文本
-        
-        Args:
-            text: 输入文本
-            source: 来源标识
-            user_id: 用户ID
-            
-        Returns:
-            Dict: 解析结果和记忆ID
-        """
+    async def parse_text_input(self, text: str, source: Optional[str], user_id: str) -> Dict[str, Any]:
+        """解析纯文本输入并创建记忆"""
         try:
             # 生成embedding
             embedding = embedding_service.generate_embedding(
@@ -401,19 +393,19 @@ class ParserService:
                 input_type="passage"
             )
             
-            # 创建记忆单元
+            # ✅ 正确的方式 - 按照Lin的版本
             memory_id = database_service.create_memory(
-                content=text,
-                memory_type='text',
-                embedding=embedding,
-                user_id=user_id,
-                metadata={
+                content=text,              # 第1个参数
+                memory_type='text',        # 第2个参数
+                embedding=embedding,       # 第3个参数
+                user_id=user_id,          # 第4个参数 ✅
+                metadata={                 # 第5个参数（命名参数）
                     'source': source or 'direct_input',
                     'parser': 'direct_text'
                 },
-                source=source,
-                summary=text[:200] + "..." if len(text) > 200 else text,
-                tags=['text', 'direct_input']
+                source=source,             # 第6个参数（命名参数）
+                summary=text[:200] + "..." if len(text) > 200 else text,  # 第7个参数
+                tags=['text', 'direct_input']  # 第8个参数 - 你可以用 [] 或 ['text', 'direct_input']
             )
             
             return {
@@ -425,8 +417,10 @@ class ParserService:
             
         except Exception as e:
             print(f"❌ Text parsing failed: {e}")
+            import traceback
+            traceback.print_exc()
             raise HTTPException(status_code=500, detail=f"Text parsing failed: {str(e)}")
-    
+        
     def get_supported_types(self) -> List[str]:
         """获取支持的文件类型"""
         return list(self.supported_types.keys())
