@@ -131,14 +131,32 @@ async def get_memory_by_id(memory_id: str):
 @router.post("/memories/{memory_id}/related")
 async def get_related_memories(
     memory_id: str,
-    limit: int = Query(5, ge=1, le=20)
+    limit: int = Query(5, ge=1, le=20),
+    current_user: User = Depends(get_current_user)  # ✅ 添加用户认证
 ):
     """
     获取相关记忆 - 基于语义相似度
+    
+    Parameters:
+        memory_id: 记忆ID
+        limit: 返回数量限制
+        
+    Returns:
+        相关记忆列表
     """
     try:
+        # 1. 验证记忆是否存在且属于当前用户
+        memory = database_service.get_memory_by_id(memory_id)
+        if not memory:
+            raise HTTPException(status_code=404, detail="Memory not found")
+        
+        if memory.get('user_id') != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # 2. ✅ 获取相关记忆（传入 user_id）
         related_memories = database_service.get_related_memories(
             memory_id=memory_id,
+            user_id=current_user.id,  # ✅ 传入 user_id
             limit=limit
         )
         
@@ -148,7 +166,12 @@ async def get_related_memories(
             "count": len(related_memories)
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        error_detail = f"Failed to get related memories: {str(e)}\nTraceback: {traceback.format_exc()}"
+        print(f"❌ {error_detail}")
         raise HTTPException(status_code=500, detail=f"Failed to get related memories: {str(e)}")
 
 @router.delete("/memories/{memory_id}")
