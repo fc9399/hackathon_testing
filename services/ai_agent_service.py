@@ -17,7 +17,7 @@ class AIAgentService:
     def __init__(self):
         self.conversation_history = {}  # 改为字典存储对话历史
         self.max_context_memories = 5
-        self.similarity_threshold = 0.2  # 降低阈值以找到更多相关记忆
+        self.similarity_threshold = 0.1  # 降低阈值以找到更多相关记忆
     
     async def chat_with_memory(
         self,
