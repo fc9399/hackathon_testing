@@ -233,7 +233,8 @@ class DatabaseService:
             # 同时存储到内存（用于快速搜索）
             self.vector_store[memory_id] = {
                 'embedding': np.array(embedding),
-                'memory_id': memory_id
+                'memory_id': memory_id,
+                'user_id': user_id  # ✅ 添加这行
             }
             
             print(f"✅ Memory created: {memory_id}")
@@ -381,27 +382,45 @@ class DatabaseService:
     def get_related_memories(
         self,
         memory_id: str,
+        user_id: str,  # ✅ 添加 user_id 参数
         limit: int = 5
     ) -> List[Dict[str, Any]]:
         """获取相关记忆"""
-        # 获取当前记忆的向量
-        if memory_id not in self.vector_store:
+        try:
+            # 1. 获取当前记忆的向量
+            if memory_id not in self.vector_store:
+                print(f"⚠️  Memory {memory_id} not found in vector store")
+                return []
+            
+            vector_data = self.vector_store[memory_id]
+            
+            # 2. 验证用户权限
+            if vector_data.get('user_id') != user_id:
+                print(f"⚠️  Memory {memory_id} does not belong to user {user_id}")
+                return []
+            
+            current_embedding = vector_data['embedding']
+            
+            # 3. ✅ 搜索相关记忆（传入 user_id）
+            results = self.semantic_search(
+                query_embedding=current_embedding.tolist(),
+                user_id=user_id,  # ✅ 添加 user_id 参数
+                limit=limit + 1,
+                threshold=0.5
+            )
+            
+            # 4. 过滤掉自己
+            related = [r for r in results if r['memory']['id'] != memory_id]
+            
+            print(f"✅ Found {len(related)} related memories for {memory_id}")
+            return related[:limit]
+            
+        except Exception as e:
+            print(f"❌ Failed to get related memories: {e}")
+            import traceback
+            traceback.print_exc()
             return []
-        
-        current_embedding = self.vector_store[memory_id]['embedding']
-        
-        # 搜索相关记忆
-        results = self.semantic_search(
-            query_embedding=current_embedding.tolist(),
-            limit=limit + 1,  # +1 因为会包含自己
-            threshold=0.5
-        )
-        
-        # 过滤掉自己
-        related = [r for r in results if r['memory']['id'] != memory_id]
-        
-        return related[:limit]
-    
+
     def delete_memory(self, memory_id: str) -> bool:
         """删除记忆"""
         try:
