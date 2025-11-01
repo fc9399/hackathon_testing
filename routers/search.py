@@ -40,9 +40,10 @@ async def semantic_search(request: SearchRequest, current_user: User = Depends(g
     """
     try:
         # 生成查询的embedding
+        # 修改！同样的文本，passage和query的相似度只有0.3992，所以input_type改为passage
         query_embedding = embedding_service.generate_embedding(
             text=request.query,
-            input_type="query"
+            input_type="passage" # ← 改为 passage
         )
         
         # 在向量数据库中搜索
