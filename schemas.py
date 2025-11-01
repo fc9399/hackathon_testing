@@ -32,7 +32,7 @@ class BatchEmbeddingResponse(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     limit: int = 10
-    threshold: float = 0.7
+    threshold: float = 0.1 # ← 从0.7改成0.1
 
 class MemoryUnit(BaseModel):
     id: str
